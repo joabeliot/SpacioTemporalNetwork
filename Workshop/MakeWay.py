@@ -1,8 +1,12 @@
 from neo4j import GraphDatabase
+import pickle
 
-uri = "neo4j+s://7c439dc5.databases.neo4j.io"
-username = "neo4j"
-password = "<apiKey>"
+def loadAuth():
+    with open('auth.pickle', 'rb') as f:
+        auth_info = pickle.load(f)
+    return auth_info['uri'], auth_info['username'], auth_info['password']
+
+uri, username, password = loadAuth()
 
 driver = GraphDatabase.driver(uri, auth=(username, password))
 

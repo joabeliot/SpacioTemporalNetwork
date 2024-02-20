@@ -1,13 +1,15 @@
 from neo4j import GraphDatabase
 import pyautogui
+import pickle
 
-uri = "neo4j+s://7c439dc5.databases.neo4j.io"
-username = "neo4j"
-password = "<apikey>"
+def loadAuth():
+    with open('auth.pickle', 'rb') as f:
+        auth_info = pickle.load(f)
+    return auth_info['uri'], auth_info['username'], auth_info['password']
+
+uri, username, password = loadAuth()
 
 driver = GraphDatabase.driver(uri, auth=(username, password))
-
-intermediate_nodes=[]
 
 def mouseMove(x,y):
     pyautogui.moveTo(x,y)
@@ -30,32 +32,29 @@ def run_query(query, session):
     result = session.run(query)
     return result
 
-def find_intermediate_nodes():
-    global intermediate_nodes
+def find_path():
     with driver.session() as session:
         query = """
         MATCH shortestPath((start:State {name: 'desktop'})-[:CONNECTED*]->(end:State {name: 'powerpoint'}))
-        RETURN nodes(shortestPath((start)-[:CONNECTED*]->(end))) AS intermediate_nodes
+        RETURN nodes(shortestPath((start)-[:CONNECTED*]->(end))) AS path
         """
         result = run_query(query, session)
         for record in result:
-            intermediate_nodes=record["intermediate_nodes"]
-            # print("###",intermediate_nodes)
+            path=record["path"]
 
-            for node in intermediate_nodes:
+            for node in path:
                 if next(iter(node.labels)) == "State":
                     pass
                 elif next(iter(node.labels)) == "Action":
                     if node._properties['name'] == "mouse" and node._properties['action'] == "move":
                         mouseMove(node._properties['value'][0],node._properties['value'][1])
                     elif node._properties['name'] == "mouse" and node._properties['action'] == "click":
-                        # print(type(node._properties["value"]),node._properties["value"])
                         mouseClick(node._properties["value"])
                     elif node._properties['name'] == "keyboardstroke" and node._properties['action'] == "press":
                         keyboardPress(node._properties['value'])
                     elif node._properties['name'] == "keyboardstroke" and node._properties['action'] == "type":
                         keyboardType(node._properties['value'])
 
-find_intermediate_nodes()
+find_path()
 
 driver.close()
